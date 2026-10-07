@@ -1,0 +1,36 @@
+# BoT-SORT tuned for a camera bolted to a wall.
+#
+# Two changes from ultralytics' botsort.yaml default:
+#
+# gmc_method: none
+#   The default is sparseOptFlow — global motion compensation, which estimates
+#   how the *camera* moved between frames and subtracts it before matching
+#   tracks. That is for handheld and vehicle-mounted footage. These cameras do
+#   not move, so it runs sparse optical flow over every frame to conclude the
+#   scene is stationary. On a CPU-only box that is real time taken from
+#   detection, and it is the source of the
+#       WARNING ⚠️ not enough matching points
+#   spam: on a near-empty road there is nothing to track between frames, the
+#   flow estimate fails, and it says so. The warning is harmless; the work
+#   producing it is not.
+#
+# track_buffer: 60
+#   Frames a lost track stays alive. The default 30 assumes ~30fps; detection
+#   here runs at a few passes per second, so 30 "frames" is ten seconds of
+#   wall clock and holds dead tracks far too long. 60 is generous but paired
+#   with TRACK_TTL, which finalizes on wall clock and is the real limit.
+tracker_type: botsort
+
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.25
+track_buffer: 60
+match_thresh: 0.8
+fuse_score: True
+
+gmc_method: none
+
+proximity_thresh: 0.5
+appearance_thresh: 0.8
+with_reid: False
+model: auto

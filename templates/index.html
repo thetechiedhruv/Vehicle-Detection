@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PLATESCOPE — License Plate Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+
+/* ============================================================
+   RESET & TOKENS
+============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Palette */
+  --ivory:      #f7f4ef;
+  --ivory-2:    #edeae3;
+  --ivory-3:    #e3dfd7;
+  --white:      #ffffff;
+  --ink:        #1a1714;
+  --ink-2:      #3d3830;
+  --ink-3:      #6b6355;
+  --ink-4:      #9c9489;
+  --ink-5:      #cac3b8;
+
+  --indigo:     #2b3de7;
+  --indigo-2:   #4a58f5;
+  --indigo-3:   #dde0fd;
+  --indigo-4:   #eef0ff;
+
+  --teal:       #0d9e82;
+  --teal-2:     #d0f5ee;
+  --orange:     #e85d26;
+  --orange-2:   #fde8de;
+  --amber:      #d97706;
+  --amber-2:    #fef3c7;
+
+  --shadow-sm:  0 1px 3px rgba(26,23,20,0.08), 0 1px 2px rgba(26,23,20,0.05);
+  --shadow-md:  0 4px 12px rgba(26,23,20,0.10), 0 2px 4px rgba(26,23,20,0.06);
+  --shadow-lg:  0 16px 40px rgba(26,23,20,0.12), 0 4px 12px rgba(26,23,20,0.07);
+  --shadow-indigo: 0 4px 20px rgba(43,61,231,0.20);
+
+  --radius-sm: 6px;
+  --radius:    12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--ivory);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   DOT PATTERN BACKGROUND
+============================================================ */
+body {
+  background-image: radial-gradient(circle, var(--ivory-3) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ============================================================
+   APP SHELL
+============================================================ */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   HEADER
+============================================================ */
+header {
+  background: var(--white);
+  border-bottom: 1.5px solid var(--ivory-3);
+  padding: 0 32px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-mark {
+  width: 34px; height: 34px;
+  background: var(--indigo);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  box-shadow: var(--shadow-indigo);
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+}
+
+.logo-text em {
+  font-style: normal;
+  color: var(--indigo);
+}
+
+.logo-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 300;
+  letter-spacing: 2px;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 100px;
+  background: var(--ivory-2);
+  border: 1px solid var(--ivory-3);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  color: var(--ink-3);
+}
+
+.chip .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink-5);
+  flex-shrink: 0;
+}
+
+.chip.active .dot {
+  background: var(--teal);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.chip.active { border-color: rgba(13,158,130,0.3); background: var(--teal-2); color: var(--teal); }
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
+}
+
+#clock {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-4);
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   WORKSPACE
+============================================================ */
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 20px 28px;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+  align-items: start;
+}
+
+/* ============================================================
+   CARDS
+============================================================ */
+.card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--ivory-3);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.card:hover { border-color: var(--ivory-2); box-shadow: var(--shadow-lg); }
+
+.card-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1.5px solid var(--ivory-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, var(--white) 0%, var(--ivory) 100%);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.card-icon.blue   { background: var(--indigo-4); color: var(--indigo); border: 1px solid var(--indigo-3); }
+.card-icon.green  { background: var(--teal-2);   color: var(--teal);   border: 1px solid rgba(13,158,130,0.25); }
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: var(--ink);
+}
+
+.card-subtitle {
+  font-size: 10px;
+  color: var(--ink-4);
+  letter-spacing: 0.3px;
+  margin-top: 1px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.badge.neutral { background: var(--ivory-2); color: var(--ink-3); border: 1px solid var(--ivory-3); }
+.badge.blue    { background: var(--indigo-4); color: var(--indigo); border: 1px solid var(--indigo-3); }
+.badge.green   { background: var(--teal-2); color: var(--teal); border: 1px solid rgba(13,158,130,0.3); }
+.badge.orange  { background: var(--orange-2); color: var(--orange); border: 1px solid rgba(232,93,38,0.25); }
+
+/* ============================================================
+   LEFT — UPLOAD ZONE
+============================================================ */
+.upload-body {
+  padding: 20px;
+  flex: 1;
+}
+
+.drop-zone {
+  width: 100%;
+  min-height: 280px;
+  border: 2px dashed var(--ivory-3);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  padding: 32px;
+  position: relative;
+  background: var(--ivory);
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--indigo);
+  background: var(--indigo-4);
+}
+
+.drop-zone:hover .drop-icon-bg { background: var(--indigo-3); }
+
+.drop-icon-bg {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--ivory-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  transition: background 0.25s;
+  border: 1.5px solid var(--ivory-3);
+}
+
+.drop-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.drop-sub {
+  font-size: 12px;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.drop-formats {
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+}
+
+.fmt-tag {
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: var(--white);
+  border: 1px solid var(--ivory-3);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--ink-3);
+}
+
+#video-input { display: none; }
+
+/* Preview */
+.preview-wrap {
+  display: none;
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  background: var(--ink);
+  min-height: 280px;
+}
+
+.preview-wrap.active { display: block; }
+
+.preview-wrap video {
+  width: 100%;
+  display: block;
+  max-height: 340px;
+  object-fit: contain;
+}
+
+.preview-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 12px 14px 10px;
+  background: linear-gradient(0deg, rgba(26,23,20,0.85) 0%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.preview-filename {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.3px;
+}
+
+.preview-tags {
+  display: flex; gap: 5px;
+}
+
+.preview-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.15);
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 1px;
+  backdrop-filter: blur(4px);
+}
+
+.change-video-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  padding: 5px 12px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 100px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s;
+  backdrop-filter: blur(4px);
+}
+
+.change-video-btn:hover { background: white; }
+
+/* ============================================================
+   SETTINGS
+============================================================ */
+.settings-panel {
+  padding: 14px 20px;
+  border-top: 1.5px solid var(--ivory-2);
+  background: var(--ivory);
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 80px;
+}
+
+.setting-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+
+.setting-value-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--ivory-3);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--indigo);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(43,61,231,0.4);
+  transition: transform 0.15s;
+}
+
+.slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+.setting-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--indigo);
+  min-width: 36px;
+  text-align: right;
+}
+
+.select-styled {
+  background: var(--white);
+  border: 1.5px solid var(--ivory-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  padding: 5px 8px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.select-styled:focus { border-color: var(--indigo); }
+
+/* Analyze button */
+.analyze-btn {
+  padding: 10px 22px;
+  background: var(--indigo);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-indigo);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.analyze-btn:hover:not(:disabled) {
+  background: var(--indigo-2);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(43,61,231,0.30);
+}
+
+.analyze-btn:disabled {
+  background: var(--ink-5);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.analyze-btn.processing {
+  background: var(--orange);
+  box-shadow: 0 4px 16px rgba(232,93,38,0.3);
+  animation: none;
+}
+
+/* ============================================================
+   RIGHT — DETECTED PLATES & LIVE LOG
+============================================================ */
+
+/* Processing Status Bar */
+.processing-status {
+  display: none;
+  padding: 12px 16px;
+  background: var(--indigo-4);
+  border-bottom: 1.5px solid var(--indigo-3);
+  align-items: center;
+  gap: 12px;
+}
+
+.processing-status.active { display: flex; }
+
+.proc-spinner-small {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--indigo-3);
+  border-top-color: var(--indigo);
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.proc-status-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--indigo);
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.cancel-btn-small {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1.5px solid rgba(232,93,38,0.35);
+  color: var(--orange);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn-small:hover { background: var(--orange-2); border-color: var(--orange); }
+
+/* Plates Container */
+.plates-container {
+  padding: 16px;
+  max-height: 375px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1.5px solid var(--ivory-2);
+}
+
+.plates-container::-webkit-scrollbar { width: 6px; }
+.plates-container::-webkit-scrollbar-track { background: var(--ivory); }
+.plates-container::-webkit-scrollbar-thumb { background: var(--ivory-3); border-radius: 4px; }
+
+.plates-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 30px;
+  text-align: center;
+  min-height: 200px;
+}
+
+.plates-placeholder-icon {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: var(--ivory-2);
+  border: 1.5px solid var(--ivory-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  color: var(--ink-5);
+}
+
+.plates-placeholder p {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+.plates-placeholder small {
+  font-size: 10px;
+  color: var(--ink-5);
+  max-width: 260px;
+}
+
+/* Plate Card */
+.plate-card {
+  background: var(--ivory);
+  border: 1.5px solid var(--ivory-3);
+  border-radius: var(--radius);
+  overflow: visible;
+  animation: fade-in-up 0.35s ease-out;
+  transition: all 0.2s;
+}
+
+.plate-card:hover {
+  border-color: var(--indigo-3);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.plate-card-header {
+  background: var(--white);
+  padding: 8px 12px;
+  border-bottom: 1.5px solid var(--ivory-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plate-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.plate-frame-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: var(--ink-4);
+  background: var(--ivory-2);
+  padding: 3px 8px;
+  border-radius: 100px;
+  border: 1px solid var(--ivory-3);
+  letter-spacing: 0.5px;
+}
+
+.plate-vehicle-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: var(--teal);
+  background: var(--teal-2);
+  padding: 3px 8px;
+  border-radius: 100px;
+  border: 1px solid rgba(13,158,130,0.3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.plate-conf-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.conf-high { background: var(--teal-2);   color: var(--teal);   border: 1px solid rgba(13,158,130,0.25); }
+.conf-med  { background: var(--amber-2);  color: var(--amber);  border: 1px solid rgba(217,119,6,0.25); }
+.conf-low  { background: var(--orange-2); color: var(--orange); border: 1px solid rgba(232,93,38,0.25); }
+
+.plate-text-section {
+  padding: 12px;
+  background: var(--white);
+}
+
+.plate-text-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--ink-5);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.plate-text-display {
+  font-family: 'DM Mono', monospace;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 3px;
+  color: var(--ink);
+  background: var(--indigo-4);
+  border: 2px solid var(--indigo-3);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.plate-text-display.unclear {
+  background: var(--ivory-2);
+  border-color: var(--ivory-3);
+  color: var(--ink-4);
+  font-size: 12px;
+  letter-spacing: 1px;
+  font-weight: 400;
+}
+
+/* Live Log Section */
+.live-log-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.log-header {
+  padding: 10px 16px;
+  background: var(--white);
+  border-bottom: 1.5px solid var(--ivory-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.log-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.log-active-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--teal);
+  animation: pulse-dot 2s ease-in-out infinite;
+  display: none;
+}
+
+.log-active-dot.active { display: block; }
+
+.log-entries {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--ivory);
+  padding: 10px;
+}
+
+.log-entries::-webkit-scrollbar { width: 5px; }
+.log-entries::-webkit-scrollbar-track { background: var(--ivory-2); }
+.log-entries::-webkit-scrollbar-thumb { background: var(--ivory-3); border-radius: 4px; }
+
+.log-empty {
+  padding: 30px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--ink-5);
+  font-style: italic;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  margin-bottom: 4px;
+  animation: slide-in 0.3s ease-out;
+  background: var(--white);
+  border: 1px solid var(--ivory-3);
+  transition: all 0.15s;
+}
+
+.log-entry:hover { 
+  border-color: var(--indigo-3);
+  box-shadow: var(--shadow-sm);
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.log-timestamp {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: var(--ink-5);
+  min-width: 50px;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
+.log-message {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-2);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.log-message .highlight {
+  color: var(--indigo);
+  font-weight: 600;
+  background: var(--indigo-4);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.log-message .success {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.log-message .error {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+/* ============================================================
+   PROGRESS BAR
+============================================================ */
+.progress-wrap {
+  display: none;
+  padding: 10px 16px 8px;
+  border-top: 1.5px solid var(--ivory-2);
+}
+
+.progress-wrap.active { display: block; }
+
+.progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.progress-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+
+.progress-pct {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--indigo);
+}
+
+.progress-track {
+  width: 100%;
+  height: 5px;
+  background: var(--ivory-2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--indigo), var(--teal));
+  transition: width 0.3s ease;
+}
+
+/* ============================================================
+   STATS ROW
+============================================================ */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1.5px solid var(--ivory-2);
+}
+
+.stat-cell {
+  padding: 12px 14px;
+  border-right: 1.5px solid var(--ivory-2);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat-cell:last-child { border-right: none; }
+
+.stat-val {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--ink);
+  line-height: 1;
+  letter-spacing: -0.5px;
+  transition: color 0.3s;
+}
+
+.stat-val.has-data { color: var(--indigo); }
+
+.stat-lbl {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--ink-5);
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  z-index: 1000;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.error   { background: var(--orange-2); color: var(--orange); border: 1px solid rgba(232,93,38,0.3); }
+.toast.success { background: var(--teal-2); color: var(--teal); border: 1px solid rgba(13,158,130,0.3); }
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+@media (max-width: 960px) {
+  .workspace { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== HEADER ===== -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">🎯</div>
+      <div>
+        <div class="logo-text">PLATE<em>SCOPE</em></div>
+        <div class="logo-sub">AI Detection System</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="chip" id="sys-chip">
+        <span class="dot"></span>
+        <span id="sys-label">Ready</span>
+      </div>
+      <div class="chip">
+        <span>YOLO v12 · PaddleOCR</span>
+      </div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ===== WORKSPACE ===== -->
+  <div class="workspace">
+
+    <!-- =========================================
+         LEFT CARD — INPUT
+    ========================================= -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-row">
+          <div class="card-icon blue">⬆</div>
+          <div>
+            <div class="card-title">Input Source</div>
+            <div class="card-subtitle">Upload a video to analyze</div>
+          </div>
+        </div>
+        <span class="badge neutral" id="input-badge">No file</span>
+      </div>
+
+      <div class="upload-body">
+        <!-- Drop zone -->
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon-bg">🎬</div>
+          <div class="drop-title">Drop your video here</div>
+          <div class="drop-sub">or click to browse files from your computer</div>
+          <div class="drop-formats">
+            <span class="fmt-tag">MP4</span>
+            <span class="fmt-tag">AVI</span>
+            <span class="fmt-tag">MOV</span>
+            <span class="fmt-tag">MKV</span>
+            <span class="fmt-tag">WEBM</span>
+          </div>
+        </div>
+        <input type="file" id="video-input" accept="video/*"/>
+
+        <!-- Preview -->
+        <div class="preview-wrap" id="preview-wrap">
+          <button class="change-video-btn" id="change-btn">↺ Change</button>
+          <video id="input-video" controls></video>
+          <div class="preview-overlay">
+            <span class="preview-filename" id="prev-filename">—</span>
+            <div class="preview-tags">
+              <span class="preview-tag" id="prev-res">—</span>
+              <span class="preview-tag" id="prev-dur">—</span>
+              <span class="preview-tag" id="prev-size">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="settings-panel">
+        <div class="setting-group">
+          <label class="setting-label">Conf Threshold</label>
+          <div class="setting-value-row">
+            <input type="range" class="slider" min="10" max="90" value="35" id="conf-slider"/>
+            <span class="setting-num" id="conf-val">0.35</span>
+          </div>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">IOU Threshold</label>
+          <div class="setting-value-row">
+            <input type="range" class="slider" min="10" max="90" value="50" id="iou-slider"/>
+            <span class="setting-num" id="iou-val">0.50</span>
+          </div>
+        </div>
+        <div class="setting-group" style="max-width:90px;">
+          <label class="setting-label">Img Size</label>
+          <select class="select-styled" id="imgsz-select">
+            <option value="640">640</option>
+            <option value="1280" selected>1280</option>
+            <option value="1920">1920</option>
+          </select>
+        </div>
+        <button class="analyze-btn" id="analyze-btn" disabled>
+          <span id="analyze-icon">▶</span>
+          <span id="analyze-text">Analyze</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- =========================================
+         RIGHT CARD — DETECTED PLATES & LIVE LOG
+    ========================================= -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-row">
+          <div class="card-icon green">🔍</div>
+          <div>
+            <div class="card-title">Detection Results</div>
+            <div class="card-subtitle">Extracted license plates & live log</div>
+          </div>
+        </div>
+        <span class="badge neutral" id="output-badge">Awaiting input</span>
+      </div>
+
+      <!-- Processing Status Bar -->
+      <div class="processing-status" id="processing-status">
+        <div class="proc-spinner-small"></div>
+        <span class="proc-status-text" id="proc-status-text">Initializing...</span>
+        <button class="cancel-btn-small" id="cancel-btn">✕ Cancel</button>
+      </div>
+
+      <!-- Detected Plates -->
+      <div class="plates-container" id="plates-container">
+        <div class="plates-placeholder" id="plates-placeholder">
+          <div class="plates-placeholder-icon">🔢</div>
+          <p>No Plates Detected Yet</p>
+          <small>Upload a video and click Analyze to begin detecting license plates</small>
+        </div>
+      </div>
+
+      <!-- Live Log -->
+      <div class="live-log-section">
+        <div class="log-header">
+          <span class="log-title">
+            <span class="log-active-dot" id="log-dot"></span>
+            Live Activity Log
+          </span>
+        </div>
+        <div class="log-entries" id="log-entries">
+          <div class="log-empty" id="log-empty">Waiting for analysis to begin...</div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="prog-wrap">
+        <div class="progress-top">
+          <span class="progress-label">Frame Processing</span>
+          <span class="progress-pct" id="prog-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="prog-fill"></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-cell">
+          <div class="stat-val" id="s-vehicles">—</div>
+          <div class="stat-lbl">Vehicles</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" id="s-plates">—</div>
+          <div class="stat-lbl">Plates</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" id="s-unique">—</div>
+          <div class="stat-lbl">Unique IDs</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" id="s-time">—</div>
+          <div class="stat-lbl">Time (s)</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CLOCK
+// ============================================================
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-US', {hour12: false});
+}, 1000);
+
+// ============================================================
+// REFS
+// ============================================================
+const dropZone     = document.getElementById('drop-zone');
+const videoInput   = document.getElementById('video-input');
+const previewWrap  = document.getElementById('preview-wrap');
+const inputVideo   = document.getElementById('input-video');
+const changeBtn    = document.getElementById('change-btn');
+const analyzeBtn   = document.getElementById('analyze-btn');
+const inputBadge   = document.getElementById('input-badge');
+const outputBadge  = document.getElementById('output-badge');
+const platesContainer = document.getElementById('plates-container');
+const platesPlaceholder = document.getElementById('plates-placeholder');
+const processingStatus = document.getElementById('processing-status');
+const procStatusText = document.getElementById('proc-status-text');
+const cancelBtnEl  = document.getElementById('cancel-btn');
+const logEntries   = document.getElementById('log-entries');
+const logDot       = document.getElementById('log-dot');
+const logEmpty     = document.getElementById('log-empty');
+const progWrap     = document.getElementById('prog-wrap');
+const progFill     = document.getElementById('prog-fill');
+const progPct      = document.getElementById('prog-pct');
+const sysChip      = document.getElementById('sys-chip');
+const sysLabel     = document.getElementById('sys-label');
+const toast        = document.getElementById('toast');
+
+// sliders
+document.getElementById('conf-slider').oninput = e => {
+  document.getElementById('conf-val').textContent = (e.target.value / 100).toFixed(2);
+};
+document.getElementById('iou-slider').oninput = e => {
+  document.getElementById('iou-val').textContent = (e.target.value / 100).toFixed(2);
+};
+
+// stat elements
+const sVehicles = document.getElementById('s-vehicles');
+const sPlates   = document.getElementById('s-plates');
+const sUnique   = document.getElementById('s-unique');
+const sTime     = document.getElementById('s-time');
+
+// ============================================================
+// STATE
+// ============================================================
+let currentFile   = null;
+let currentJobId  = null;
+let eventSource   = null;
+let startTime     = null;
+let timerInterval = null;
+let plateCount    = 0;
+
+// ============================================================
+// UPLOAD HANDLING
+// ============================================================
+dropZone.addEventListener('click', () => videoInput.click());
+changeBtn.addEventListener('click', () => videoInput.click());
+
+videoInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) loadFile(f);
+  else showToast('Please drop a valid video file', 'error');
+});
+
+function formatBytes(b) {
+  return b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB';
+}
+function formatDuration(s) {
+  const m = Math.floor(s/60);
+  return `${m}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+}
+
+function loadFile(file) {
+  currentFile = file;
+  const url = URL.createObjectURL(file);
+  inputVideo.src = url;
+
+  document.getElementById('prev-filename').textContent = file.name;
+  document.getElementById('prev-size').textContent = formatBytes(file.size);
+
+  inputVideo.onloadedmetadata = () => {
+    document.getElementById('prev-res').textContent = `${inputVideo.videoWidth}×${inputVideo.videoHeight}`;
+    document.getElementById('prev-dur').textContent = formatDuration(inputVideo.duration);
+  };
+
+  const short = file.name.length > 18 ? file.name.slice(0,16)+'…' : file.name;
+  inputBadge.textContent = short;
+  inputBadge.className = 'badge blue';
+
+  dropZone.style.display = 'none';
+  previewWrap.classList.add('active');
+  analyzeBtn.disabled = false;
+  resetOutput();
+}
+
+// ============================================================
+// RESET OUTPUT
+// ============================================================
+function resetOutput() {
+  platesContainer.innerHTML = '';
+  platesContainer.appendChild(platesPlaceholder);
+  platesPlaceholder.style.display = 'flex';
+  logEntries.innerHTML = '';
+  logEntries.appendChild(logEmpty);
+  outputBadge.textContent = 'Awaiting input';
+  outputBadge.className = 'badge neutral';
+  processingStatus.classList.remove('active');
+  progWrap.classList.remove('active');
+  logDot.classList.remove('active');
+  plateCount = 0;
+  ['s-vehicles','s-plates','s-unique','s-time'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '—';
+    el.className = 'stat-val';
+  });
+  clearInterval(timerInterval);
+}
+
+// ============================================================
+// SYSTEM CHIP
+// ============================================================
+function setSysState(state) {
+  sysChip.className = 'chip' + (state === 'active' ? ' active' : '');
+  const labels = { ready: 'Ready', active: 'Analyzing…', done: 'Complete', cancelled: 'Cancelled', error: 'Error' };
+  sysLabel.textContent = labels[state] || state;
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg, type = 'success') {
+  toast.textContent = msg;
+  toast.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+}
+
+// ============================================================
+// ANALYZE
+// ============================================================
+analyzeBtn.addEventListener('click', startAnalysis);
+cancelBtnEl.addEventListener('click', cancelJob);
+
+async function startAnalysis() {
+  if (!currentFile) return;
+  analyzeBtn.disabled = true;
+  analyzeBtn.classList.add('processing');
+  document.getElementById('analyze-icon').textContent = '⏸';
+  document.getElementById('analyze-text').textContent = 'Processing…';
+  setSysState('active');
+
+  processingStatus.classList.add('active');
+  progWrap.classList.add('active');
+  outputBadge.textContent = 'Processing…';
+  outputBadge.className = 'badge orange';
+  platesPlaceholder.style.display = 'none';
+  logEmpty.style.display = 'none';
+  logDot.classList.add('active');
+
+  procStatusText.textContent = 'Uploading video…';
+  startTime = Date.now();
+
+  // Elapsed timer
+  timerInterval = setInterval(() => {
+    sTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1);
+    sTime.className = 'stat-val has-data';
+  }, 200);
+
+  const conf  = document.getElementById('conf-slider').value / 100;
+  const iou   = document.getElementById('iou-slider').value  / 100;
+  const imgsz = document.getElementById('imgsz-select').value;
+
+  const formData = new FormData();
+  formData.append('video', currentFile);
+  formData.append('conf',  conf);
+  formData.append('iou',   iou);
+  formData.append('imgsz', imgsz);
+
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Upload failed');
+    }
+    const data = await res.json();
+    currentJobId = data.job_id;
+    addLog('Upload complete. Starting analysis...', 'success');
+    openStream(currentJobId);
+  } catch (err) {
+    handleError(err.message);
+  }
+}
+
+// ============================================================
+// SSE STREAM
+// ============================================================
+function openStream(jobId) {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`/stream/${jobId}`);
+
+  eventSource.addEventListener('status', e => {
+    const d = JSON.parse(e.data);
+    procStatusText.textContent = d.message;
+    setProgress(d.progress || 0);
+    addLog(d.message);
+  });
+
+  eventSource.addEventListener('progress', e => {
+    const d = JSON.parse(e.data);
+    setProgress(d.progress);
+    setStat('s-vehicles', d.vehicles);
+    setStat('s-plates', d.plates);
+    setStat('s-unique', d.unique);
+    procStatusText.textContent = `Processing frame ${d.frame}/${d.total}`;
+  });
+
+  eventSource.addEventListener('detection', e => {
+    const d = JSON.parse(e.data);
+    addPlateCard(d);
+    const plateText = d.plate || 'UNCLEAR';
+    if (d.plate && d.plate.trim() !== '' && d.plate.toLowerCase() !== 'unclear') {
+      addLog(`Detected plate: <span class="highlight">${d.plate}</span> from ${d.vehicle} (ID: ${d.vehicle_id}) at frame ${d.frame}`, 'success');
+    }
+  });
+
+  eventSource.addEventListener('done', e => {
+    const d = JSON.parse(e.data);
+    eventSource.close();
+    clearInterval(timerInterval);
+    setProgress(100);
+    processingStatus.classList.remove('active');
+
+    outputBadge.textContent = 'Complete';
+    outputBadge.className   = 'badge green';
+    setSysState('done');
+    analyzeBtn.disabled     = false;
+    analyzeBtn.classList.remove('processing');
+    document.getElementById('analyze-icon').textContent = '▶';
+    document.getElementById('analyze-text').textContent = 'Analyze';
+
+    addLog(`<span class="success">✓ Analysis complete!</span> Detected ${plateCount} license plates.`, 'success');
+    logDot.classList.remove('active');
+
+    setTimeout(() => progWrap.classList.remove('active'), 2500);
+    showToast(`Done! ${plateCount} plates detected.`, 'success');
+  });
+
+  eventSource.addEventListener('cancelled', e => {
+    eventSource.close();
+    clearInterval(timerInterval);
+    finishCancel();
+  });
+
+  eventSource.addEventListener('error', e => {
+    let msg = 'Processing error';
+    try { msg = JSON.parse(e.data).message; } catch(_) {}
+    if (e.type === 'error' && eventSource.readyState === EventSource.CLOSED) return;
+    eventSource.close();
+    handleError(msg);
+  });
+
+  eventSource.addEventListener('close', () => { eventSource.close(); });
+}
+
+// ============================================================
+// CANCEL
+// ============================================================
+async function cancelJob() {
+  if (!currentJobId) return;
+  try {
+    await fetch(`/cancel/${currentJobId}`, { method: 'POST' });
+  } catch (_) {}
+  finishCancel();
+}
+
+function finishCancel() {
+  clearInterval(timerInterval);
+  processingStatus.classList.remove('active');
+  progWrap.classList.remove('active');
+  outputBadge.textContent = 'Cancelled';
+  outputBadge.className   = 'badge neutral';
+  setSysState('cancelled');
+  analyzeBtn.disabled = false;
+  analyzeBtn.classList.remove('processing');
+  document.getElementById('analyze-icon').textContent = '▶';
+  document.getElementById('analyze-text').textContent = 'Analyze';
+  logDot.classList.remove('active');
+  addLog('<span class="error">✕ Analysis cancelled by user</span>');
+  showToast('Analysis cancelled', 'error');
+}
+
+// ============================================================
+// ERROR
+// ============================================================
+function handleError(msg) {
+  clearInterval(timerInterval);
+  processingStatus.classList.remove('active');
+  progWrap.classList.remove('active');
+  outputBadge.textContent = 'Error';
+  outputBadge.className   = 'badge orange';
+  setSysState('error');
+  analyzeBtn.disabled     = false;
+  analyzeBtn.classList.remove('processing');
+  document.getElementById('analyze-icon').textContent = '▶';
+  document.getElementById('analyze-text').textContent = 'Analyze';
+  logDot.classList.remove('active');
+  addLog(`<span class="error">✕ Error: ${msg}</span>`);
+  showToast('Error: ' + msg, 'error');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setProgress(pct) {
+  progFill.style.width = pct + '%';
+  progPct.textContent  = pct + '%';
+}
+
+function setStat(id, val) {
+  const el = document.getElementById(id);
+  if (el && val !== undefined) {
+    el.textContent = val;
+    el.className   = 'stat-val has-data';
+  }
+}
+
+// ============================================================
+// ADD PLATE CARD
+// ============================================================
+function addPlateCard(d) {
+  // 🚫 If no valid plate, do nothing
+  if (!d.plate || d.plate.trim() === '' || d.plate.toLowerCase() === 'unclear') {
+    return;
+  }
+
+  plateCount++;
+
+  const conf = parseFloat(d.confidence);
+  const confCls = conf >= 0.80 ? 'conf-high'
+                 : conf >= 0.60 ? 'conf-med'
+                 : 'conf-low';
+
+  const card = document.createElement('div');
+  card.className = 'plate-card';
+
+  card.innerHTML = `
+    <div class="plate-card-header">
+      <div class="plate-card-meta">
+        <span class="plate-frame-badge">Frame ${String(d.frame).padStart(4,'0')}</span>
+        <span class="plate-vehicle-badge">${d.vehicle} ID:${d.vehicle_id}</span>
+      </div>
+      <span class="plate-conf-badge ${confCls}">${(conf * 100).toFixed(0)}%</span>
+    </div>
+    <div class="plate-text-section">
+      <div class="plate-text-label">Extracted Text</div>
+      <div class="plate-text-display">${d.plate}</div>
+    </div>
+  `;
+
+  platesContainer.insertBefore(card, platesContainer.firstChild);
+}
+
+// ============================================================
+// ADD LOG ENTRY
+// ============================================================
+function addLog(message, type = 'info') {
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+  entry.innerHTML = `
+    <span class="log-timestamp">${timestamp}</span>
+    <span class="log-message">${message}</span>
+  `;
+
+  logEntries.appendChild(entry);
+  logEntries.scrollTop = logEntries.scrollHeight;
+}
+</script>
+</body>
+</html>

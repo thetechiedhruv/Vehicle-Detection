@@ -1,0 +1,82 @@
+# =============================================================================
+# PlateScope — what must never leave this machine
+# =============================================================================
+
+# Secrets. .env holds the edge API key and the camera passwords.
+# .env.example is the template and IS published — it must stay free of real
+# values. The negation has to come after the .env.* rule to take effect.
+.env
+.env.*
+!.env.example
+
+# Runtime data: the local plate database, the camera list (whose stream URLs
+# carry camera passwords), the duplicate window, registered vehicle records.
+data/
+*.db
+*.sqlite3
+
+# Model weights. Far too large for git — several are 40-115MB, and GitHub
+# rejects anything over 100MB. Fetch them out of band.
+*.pt
+*.pth
+*.onnx
+*.ckpt
+models/
+test_models/
+weights/
+runs/
+
+# Footage and results. Test clips, uploaded videos, annotated output — none of
+# it belongs in the repo, and some of it is of real vehicles and real people.
+videos/
+uploads/
+outputs/
+detections/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.jpg
+*.jpeg
+*.png
+
+# Working copies kept while editing. Not secret, but not the project either.
+*.bak
+*.bak-*
+*~
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+env/
+ENV/
+venv*/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+.ipynb_checkpoints
+
+# Logs
+*.log
+logs/
+
+backup/

@@ -1,0 +1,83 @@
+# =============================================================================
+# PLATESCOPE — dependencies
+# =============================================================================
+#
+#   pip install -r requirements.txt
+#
+# This lists only what the project imports. pip resolves the rest (torch pulls
+# its own CUDA libraries, ultralytics pulls pillow/scipy/matplotlib/tqdm, and
+# so on) — pinning transitive dependencies by hand is what made the previous
+# file slow and fragile.
+#
+# CPU-ONLY INSTALL (recommended — much smaller and faster)
+# --------------------------------------------------------
+# The default torch wheel drags in ~3 GB of CUDA libraries. If you are not
+# running on an NVIDIA GPU, install torch from the CPU index FIRST, then this
+# file:
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+#
+# Detection runs fine on CPU — the timings quoted in plate_scan.py are CPU
+# numbers.
+#
+# GPU INSTALL
+# -----------
+# Just `pip install -r requirements.txt`; the default wheels are CUDA builds.
+# For paddle on GPU, swap paddlepaddle for paddlepaddle-gpu.
+# =============================================================================
+
+
+# --- Detection ---------------------------------------------------------------
+
+# YOLO. Brings torch, torchvision, pillow, scipy, matplotlib, pyyaml,
+# tqdm, psutil and requests with it.
+ultralytics>=8.3.0
+
+# Declared explicitly so the CPU-only install above can override the index.
+torch>=2.2
+torchvision>=0.17
+
+# Required by ultralytics' .track(persist=True), which plate_edge.py depends on
+# for per-vehicle plate voting. Tracking silently fails to start without it.
+lap>=0.5.12
+
+
+# --- OCR ---------------------------------------------------------------------
+
+# Must be 3.x. The 2.x result shape is a list of (box, (text, score)) tuples;
+# plate_scan.py and vehicle_numberplate_video.py both read the 3.x shape
+# (res["rec_texts"] / res["rec_scores"]) and pass 3.x-only constructor
+# arguments such as use_doc_orientation_classify.
+#
+# 3.x also drops attrdict, which cannot import on Python 3.10+ and was the
+# hard failure in the previous pin.
+paddleocr>=3.0.0
+paddlepaddle>=3.0.0
+
+
+# --- Imaging -----------------------------------------------------------------
+
+# Do NOT also install opencv-contrib-python: both provide the cv2 module and
+# whichever lands second wins. Nothing here uses the contrib modules.
+#
+# Kept at >=4.10 because 4.6.0.66 ships no wheels for Python 3.11+ and falls
+# back to a source build.
+opencv-python>=4.10.0
+
+numpy>=1.26,<3
+
+
+# --- Edge service: plate_edge.py ---------------------------------------------
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-dotenv>=1.0.0
+aiohttp>=3.9.0
+pydantic>=2.0.0
+
+
+# --- Web app: app.py ---------------------------------------------------------
+
+flask>=3.0.0
+flask-cors>=4.0.0
